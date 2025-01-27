@@ -1,1 +1,4 @@
-auto BufRead,BufNewFile *.mpq set filetype=mpq
+" Vim ftdetect plugin file
+" Language:           PowerQueryM
+
+au BufNewFile,BufRead   *.pq   set ft=PowerQueryM
