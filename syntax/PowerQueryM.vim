@@ -1,7 +1,7 @@
 "=============================================================================
 " File:        syntax\PowerQueryM.vim
-" Last Change: 21.10.2019
-" Version:     0.0.1
+" Last Change: 27.01.2025
+" Version:     0.0.2
 "=============================================================================
 
 if exists("b:current_syntax")
@@ -11,164 +11,103 @@ endif
 let s:cpo_save = &cpo
 set cpo&vim
 
-syn keyword pqmTodo				contained TODO FIXME XXX NOTE HACK
-syn region  pqmComment		start="/\*"  end="\*/" contains=@pqmCommentHook,pqmTodo,@Spell
-syn match   pqmComment		"//.*$" contains=@pqmCommentHook,pqmTodo,@Spell
-syn keyword pqmLabel			let in
-syn keyword pqmonditional	if then else
-syn keyword pqmConstant		each and as error true false is meta not or section shared type
-syn keyword pqmException	try otherwise
-syn keyword pqmBuiltin		#binary #date #datetime #datetimezone #duration #infinity #nan #sections #shared #table #time
+" TODO: Is MPQ case-sensitive?
+syntax case ignore
 
-hi def link pqmTodo				Todo
-hi def link pqmComment		Comment
-hi def link pqmLabel			Label
-hi def link pqmonditional	Conditional
-hi def link pqmConstant		Constant
-hi def link pqmException	Exception
-hi def link pqmBuiltin		Function
+" Comments (section 12.1.2)
+syn keyword mpq_comment_todo				contained TODO FIXME XXX DEBUG NOTE HACK
+" syn match   mpq_Comment		"//.*$" contains=@mpq_Comment,mpq_comment_todo,@Spell
+syn region  mpq_Comment	  start="//" skip="\\$" end="$" keepend contains=mpq_comment_todo,@Spell
+syn region  mpq_Comment		start="/\*"  end="\*/" keepend contains=mpq_Comment,mpq_comment_todo,@Spell
 
-" {{{1 Syntax reserve from $vimruntime\syntax\cs.vim
+" Literals (section 12.1.5)
+" TODO: Match octal numbers. Hex numbers too?
+syntax match	mpq_number "\d\+\.\d\+[eE][-+]\?\d\+"
+syntax match	mpq_number     "\.\d\+[eE][-+]\?\d\+"
+syntax match	mpq_number       "\d\+[eE][-+]\?\d\+"
+syntax match	mpq_number                     "\d\+"
+syntax region	mpq_string start=/"/hs=s+1 skip=/\\|\"/ end=/"/he=e-1
+
+syn keyword mpq_Label			  LET IN
+syn keyword mpq_conditional	IF THEN ELSE
+syn keyword mpq_Constant		ERROR TRUE FALSE
+syn keyword mpq_Exception	  TRY OTHERWISE
+
+" Keywords (section 12.1.7)
+syntax keyword  mpq_keywords	EACH AND AS IS META NOT OR SECTION SHARED TYPE
+syntax keyword	mpq_Builtin #BINARY #DATE #DATETIME #DATETIMEZONE #DURATION
+syntax keyword	mpq_Builtin #INFINITY #NAN #SECTIONS #SHARED #TABLE #TIME
+
+" Operators (section 12.1.8)
+syntax match	mpq_oper "[-,;=<>]"
+syntax match	mpq_oper "<="
+syntax match	mpq_oper ">="
+syntax match	mpq_oper "<>"
+syntax match	mpq_oper "[-+*]"
+syntax match	mpq_oper "[^/]\zs\/\ze[^/]"   " Needs to differentiate from comment leader
+syntax match	mpq_oper "[&()@?]"
+syntax match	mpq_oper "[[\]{}]"
+syntax match	mpq_oper "=>"
+syntax match	mpq_oper "\.\{2,3\}"
+
+" Lists (section 12.2.3.17)
+syntax region	mpq_list start="{" end="}"	contains=ALL
+
+" Records (section 12.2.3.18)
+syntax region	mpq_record start="\[" end="\]"	contains=ALL
+
+" Type expression (section 12.2.3.25)
+" OBS: Using 'syntax keyword' does not work very well because 'list', 'record', and
+"      possibly other keyswords overlaps with standard library objects like List and
+"      Record. And 'syntax keyword' has a higher priority than 'syntax match'.
+syntax match	mpq_ptype '\<\(any\|anynonnull\|binary\|date\|datetime\|datetimezone\|duration\|function\)\>'
+syntax match	mpq_ptype '\<\(list\|logical\|none\|null\|number\|record\|table\|text\|type\)\>'
+
+" Treat standard library objects and functions (File.Contents, List.First, List.Select, etc) as keywords.
+" TODO: Match all library objects and functions.
+syntax match	mpq_library  "Excel\.\w\+"
+syntax match	mpq_library  "File\.\w\+"
+syntax match	mpq_library  "List\.\w\+"
+syntax match	mpq_library  "Record\.\w\+"
+syntax match	mpq_library  "Replacer\.\w\+"
+syntax match	mpq_library  "Table\.\w\+"
+syntax match	mpq_library  "Text\.\w\+"
+
+" {{{1 Catch errors caused by wrong parenthesis. Copied from awk.vim v. 2012-05-18.
+" FIXME: Disabled for now since I do not understand what it is doing and if it is
+"        applicable to MPQ.
 if 0
+  syntax region	mpq_paren	transparent start="(" end=")" contains=ALLBUT,mpq_paren_error,mpq_spec_char,mpq_list,mpt_record,mpq_comment_todo,mpq_regex,mpq_brackets,mpq_char_class
+  syntax match	mpq_paren_error	display ")"
+  syntax match	mpq_in_paren	display contained "[{}]"
 
-syn keyword csType			bool byte char decimal double float int long object sbyte short string T uint ulong ushort var void dynamic
-syn keyword csStorage			delegate enum interface namespace struct
-syn keyword csRepeat			break continue do for foreach goto return while
-syn keyword csConditional		else if switch
-syn keyword csLabel			case default
-" there's no :: operator in C#
-syn match csOperatorError		display +::+
-" user labels (see [1] 8.6 Statements)
-syn match   csLabel			display +^\s*\I\i*\s*:\([^:]\)\@=+
-syn keyword csModifier			abstract const extern internal override private protected public readonly sealed static virtual volatile
-syn keyword csConstant			false null true
-syn keyword csException			try catch finally throw when
-syn keyword csLinq			ascending by descending equals from group in into join let on orderby select where
-syn keyword csAsync			async await
+  syntax region	mqp_brackets	contained start="\[\^\]\="ms=s+2 start="\[[^\^]"ms=s+1 end="\]"me=e-1 contains=mqp_brkt_regxxp,mqp_char_class
 
-syn keyword csUnspecifiedStatement	as base checked event fixed get in is lock nameof operator out params ref set sizeof stackalloc this typeof unchecked unsafe using
-syn keyword csUnsupportedStatement	add remove value
-syn keyword csUnspecifiedKeyword	explicit implicit
+  syntax match	mqp_char_class	contained "\[:[^:\]]*:\]"
+  syntax match	mqp_brkt_regex	contained "\\.\|.\-[^]]"
+  syntax match	mqp_regex	contained "/\^"ms=s+1
+  syntax match	mqp_regex	contained "\$/"me=e-1
+  syntax match	mqp_regex	contained "[?.*{}|+]"
+  syntax match	mpq_spec_char	contained '\.'
+endif
+" }}}1
 
-" Contextual Keywords
-syn match csContextualStatement	/\<yield[[:space:]\n]\+\(return\|break\)/me=s+5
-syn match csContextualStatement	/\<partial[[:space:]\n]\+\(class\|struct\|interface\)/me=s+7
-syn match csContextualStatement	/\<\(get\|set\)[[:space:]\n]*{/me=s+3
-syn match csContextualStatement	/\<where\>[^:]\+:/me=s+5
-
-" Comments
-"
-" PROVIDES: @csCommentHook
-"
-" TODO: include strings ?
-"
-syn keyword csTodo		contained TODO FIXME XXX NOTE HACK
-syn region  csComment		start="/\*"  end="\*/" contains=@csCommentHook,csTodo,@Spell
-syn match   csComment		"//.*$" contains=@csCommentHook,csTodo,@Spell
-
-" xml markup inside '///' comments
-syn cluster xmlRegionHook	add=csXmlCommentLeader
-syn cluster xmlCdataHook	add=csXmlCommentLeader
-syn cluster xmlStartTagHook	add=csXmlCommentLeader
-syn keyword csXmlTag		contained Libraries Packages Types Excluded ExcludedTypeName ExcludedLibraryName
-syn keyword csXmlTag		contained ExcludedBucketName TypeExcluded Type TypeKind TypeSignature AssemblyInfo
-syn keyword csXmlTag		contained AssemblyName AssemblyPublicKey AssemblyVersion AssemblyCulture Base
-syn keyword csXmlTag		contained BaseTypeName Interfaces Interface InterfaceName Attributes Attribute
-syn keyword csXmlTag		contained AttributeName Members Member MemberSignature MemberType MemberValue
-syn keyword csXmlTag		contained ReturnValue ReturnType Parameters Parameter MemberOfPackage
-syn keyword csXmlTag		contained ThreadingSafetyStatement Docs devdoc example overload remarks returns summary
-syn keyword csXmlTag		contained threadsafe value internalonly nodoc exception param permission platnote
-syn keyword csXmlTag		contained seealso b c i pre sub sup block code note paramref see subscript superscript
-syn keyword csXmlTag		contained list listheader item term description altcompliant altmember
-
-syn cluster xmlTagHook add=csXmlTag
-
-syn match   csXmlCommentLeader	+\/\/\/+    contained
-syn match   csXmlComment	+\/\/\/.*$+ contains=csXmlCommentLeader,@csXml,@Spell
-syntax include @csXml syntax/xml.vim
-hi def link xmlRegion Comment
-
-
-" [1] 9.5 Pre-processing directives
-syn region	csPreCondit
-    \ start="^\s*#\s*\(define\|undef\|if\|elif\|else\|endif\|line\|error\|warning\)"
-    \ skip="\\$" end="$" contains=csComment keepend
-syn region	csRegion matchgroup=csPreCondit start="^\s*#\s*region.*$"
-    \ end="^\s*#\s*endregion" transparent fold contains=TOP
-syn region	csSummary start="^\s*/// <summary" end="^\(\s*///\)\@!" transparent fold keepend
-
-
-syn region	csClassType start="\(@\)\@<!class\>"hs=s+6 end="[:\n{]"he=e-1 contains=csClass
-syn region	csNewType start="\(@\)\@<!new\>"hs=s+4 end="[\(\<{\[]"he=e-1 contains=csNew contains=csNewType
-syn region	csIsType start="\v (is|as) "hs=s+4 end="\v[A-Za-z0-9]+" oneline contains=csIsAs
-syn keyword	csNew new contained
-syn keyword	csClass class contained
-syn keyword	csIsAs is as
-
-" Strings and constants
-syn match   csSpecialError	contained "\\."
-syn match   csSpecialCharError	contained "[^']"
-" [1] 9.4.4.4 Character literals
-syn match   csSpecialChar	contained +\\["\\'0abfnrtvx]+
-" unicode characters
-syn match   csUnicodeNumber	+\\\(u\x\{4}\|U\x\{8}\)+ contained contains=csUnicodeSpecifier
-syn match   csUnicodeSpecifier	+\\[uU]+ contained
-syn region  csVerbatimString	start=+@"+ end=+"+ skip=+""+ contains=csVerbatimSpec,@Spell
-syn match   csVerbatimSpec	+@"+he=s+1 contained
-syn region  csString		start=+"+  end=+"+ end=+$+ contains=csSpecialChar,csSpecialError,csUnicodeNumber,@Spell
-syn match   csCharacter		"'[^']*'" contains=csSpecialChar,csSpecialCharError
-syn match   csCharacter		"'\\''" contains=csSpecialChar
-syn match   csCharacter		"'[^\\]'"
-syn match   csNumber		"\<\(0[0-7]*\|0[xX]\x\+\|\d\+\)[lL]\=\>"
-syn match   csNumber		"\(\<\d\+\.\d*\|\.\d\+\)\([eE][-+]\=\d\+\)\=[fFdD]\="
-syn match   csNumber		"\<\d\+[eE][-+]\=\d\+[fFdD]\=\>"
-syn match   csNumber		"\<\d\+\([eE][-+]\=\d\+\)\=[fFdD]\>"
-
-" The default highlighting.
-hi def link csType			Type
-hi def link csNewType			Type
-hi def link csClassType			Type
-hi def link csIsType			Type
-hi def link csStorage			StorageClass
-hi def link csClass			StorageClass
-hi def link csRepeat			Repeat
-hi def link csConditional		Conditional
-hi def link csLabel			Label
-hi def link csModifier			StorageClass
-hi def link csConstant			Constant
-hi def link csException			Exception
-hi def link csUnspecifiedStatement	Statement
-hi def link csUnsupportedStatement	Statement
-hi def link csUnspecifiedKeyword	Keyword
-hi def link csNew			Statement
-hi def link csLinq			Statement
-hi def link csIsAs 			Keyword
-hi def link csAsync			Keyword
-hi def link csContextualStatement	Statement
-hi def link csOperatorError		Error
-hi def link csInterfaceDeclaration	Include
-
-hi def link csTodo			Todo
-hi def link csComment			Comment
-
-hi def link csSpecialError		Error
-hi def link csSpecialCharError		Error
-hi def link csString			String
-hi def link csVerbatimString		String
-hi def link csVerbatimSpec		SpecialChar
-hi def link csPreCondit			PreCondit
-hi def link csCharacter			Character
-hi def link csSpecialChar		SpecialChar
-hi def link csNumber			Number
-hi def link csUnicodeNumber		SpecialChar
-hi def link csUnicodeSpecifier		SpecialChar
-
-" xml markup
-hi def link csXmlCommentLeader		Comment
-hi def link csXmlComment		Comment
-hi def link csXmlTag			Statement
-
-endif " }}}1
+hi def link mpq_comment_todo    Todo
+hi def link mpq_Comment         Comment
+hi def link mpq_string          Constant
+hi def link mpq_number          Number
+hi def link mpq_ident           Identifier
+hi def link mpq_oper            Operator
+hi def link mpq_keywords        Keyword
+hi def link mpq_library         Keyword
+hi def link mpq_ptype           Keyword
+hi def link mpq_list            Structure
+hi def link mpq_record          Structure
+hi def link mpq_Label           Label
+hi def link mpq_conditional     Conditional
+hi def link mpq_Constant        Constant
+hi def link mpq_Exception       Exception
+hi def link mpq_Builtin         Function
 
 let b:current_syntax = "powerquerym"
 
