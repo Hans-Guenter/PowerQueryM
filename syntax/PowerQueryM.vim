@@ -1,7 +1,7 @@
 "=============================================================================
 " File:        syntax\PowerQueryM.vim
-" Last Change: 27.01.2025
-" Version:     0.0.2
+" Last Change: 28.01.2025
+" Version:     0.0.3
 "=============================================================================
 
 if exists("b:current_syntax")
@@ -26,7 +26,9 @@ syntax match	mpq_number "\d\+\.\d\+[eE][-+]\?\d\+"
 syntax match	mpq_number     "\.\d\+[eE][-+]\?\d\+"
 syntax match	mpq_number       "\d\+[eE][-+]\?\d\+"
 syntax match	mpq_number                     "\d\+"
-syntax region	mpq_string start=/"/hs=s+1 skip=/\\|\"/ end=/"/he=e-1
+syntax match	mpq_ident  "#\"[^\"]\+\""
+syntax match	mpq_ident  "\(\"\|\/\)\@<![^\"[:space:]\.[\]{},/]\+\"\@!"
+syntax region	mpq_string start=/#\@<!"/hs=s+1 skip=/\\|\"/ end=/"/he=e-1
 
 syn keyword mpq_Label			  LET IN
 syn keyword mpq_conditional	IF THEN ELSE
